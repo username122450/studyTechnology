@@ -653,3 +653,143 @@ Redis会记录上次重写时的AOF大小，默认配置是当AOF文件大小是
 
 - 读写分离，性能扩展
 - 容灾快速恢复
+
+
+
+### 配置
+
+创建主机从机conf文件后，写入以下配置
+
+```bash
+include /myredis/redis.conf
+pidfile /var/run/redis_6379.pid
+port 6379
+dbfilename dump6379.rdb
+```
+
+根据主从机修改配置
+
+在从机中添加配置：主机地址和端口
+
+```bash
+slaveof 127.0.0.1 6379
+```
+
+启动主从机即可
+
+对redis-cli，可以用`-p 端口号`来指定操作服务器
+
+可以在cli里面用`info replication`
+
+
+
+### 原理
+
+- slave启动成功连接到master后会发送一个sync命令
+- master接收到命令，启动后台的存盘进程，同时收集所有接收到的用于修改数据集的命令，在后台进程执行完毕后，master将传送整个数据文件到slave，完成一次完全同步
+- 全量复制：在slave服务接收到数据库文件数据后，将其存盘并加载到内存中
+- 增量复制：master继续将新的所有收集到的修改命令依此传给slave，完成同步
+- 但是只要时重新连接master，已经完全同步（全量复制）将被自动执行
+
+
+
+### 薪火相传
+
+优势：分担主机数据同步的压力（去中心化）
+
+劣势：如果某台从机挂机后，这台机器下面的节点机器无法同步最新数据
+
+搭建：将新创建的redis服务器作为从机挂载到非6379的redis服务器下`slaveof 127.0.0.1 6381`
+
+
+
+### 反客为主
+
+默认情况下，如果主机挂了，从机的角色不会发生变化，如果我们想主机挂了只会，从机的角色发生转换，转换成主机，这就是反客为主
+
+在要设置的服务器cli里面`slaveof no one`可以临时设为主机
+
+在其他主机的从机里设置`slaveof 临时主机地址 端口号`
+
+
+
+### 哨兵模式
+
+**反客为主的自动版**，后台监控主机是否故障，如果故障了，根据票数自动将节点切换为主节点
+
+#### 搭建
+
+- 在myredis文件夹下，创建**sentinel.conf**文件
+
+- 定义 
+    ```bash
+    sentinel monitor mymaster 127.0.0.1 6379 1
+    ```
+
+    - mymaster：监控对象起的服务器名称
+    - 1：至少有多少个哨兵同意迁移的数量
+
+- 启动哨兵
+    ```bash
+    redis-sentinel sentinel.conf
+    ```
+
+
+
+在原主机挂掉，哨兵模式自动选取新主机后，如果原主机重启，新主机不会让位，主机还是保持为新主机
+
+
+
+#### 哨兵模式的选举策略
+
+1. 优先级靠前的
+    优先级在conf中设置：默认为100
+
+    ```bash
+    658 replica-priority 100
+    ```
+
+2. 偏移量最大的
+    偏移量是指获取原主机数据最全的
+
+3. runid最小的
+    每个redis服务重启后会随机生成一个40位的runid码
+
+
+
+
+
+## redis集群
+
+### 搭建三主三从集群
+
+在redis-cluster复制redis.conf文件
+
+6个端口分别是6379，6380，6381，6389，6390，6391
+
+在配置文件中定义
+
+```bash
+include /redis-cluster/redis.conf
+pidfile /var/run/redis_6379.pid
+port 6379
+dbfilename dump6379.rdb
+cluster-enabled yes
+cluster-config-file nodes-6379.conf
+cluster-node-timeout 15000
+```
+
+注意：
+
+- cluster-enabled yes：打开集群模式
+
+- cluster-config-file nodes-6379.conf：设定节点配置文件名
+
+- cluster-node-timeout 15000：设定节点失联时间，超过该时间（毫秒），集群自动进行主从切换。
+
+快捷命令：用6380替换文件中的6379
+
+```bash
+%s/6379/6380
+```
+
