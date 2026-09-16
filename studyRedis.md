@@ -793,3 +793,216 @@ cluster-node-timeout 15000
 %s/6379/6380
 ```
 
+确保所有服务启动，并且nodes-xxxx.conf文件都生成正常
+
+进入`/opt/redis-6.2.16`的src目录下，输入集群化命令
+
+```bash
+redis-cli --cluster create 192.168.198.150:6379 192.168.198.150:6380 192.168.198.150:6381 192.168.198.150:6389 192.168.198.150:6390 192.168.198.150:6391 --cluster-replicas 1
+```
+
+注意：
+
+- 搭建前在redis.conf里关闭仅本地连接`bind`
+- 关闭保护模式`protected-mode no`
+
+在输入后出现
+
+`Can I set the above configuration?(type 'yes' to accept):`
+
+输入yes接受以上配置，出现
+
+```bash
+[OK] All nodes agree about slots configuration
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+```
+
+说明集群搭建成功
+
+
+
+### 连接集群
+
+`redis-cli -c -p 6379`
+
+- -c：指使用集群方式连接redis
+
+查看集群具体情况
+
+`cluster nodes`
+
+
+
+### 集群原理
+
+#### 投票容错策略
+
+至少有半数及以上的主节点都认为这个节点挂掉了，才认为这个节点真的挂掉了
+
+#### 分配原则
+
+分配原则尽量保证每个主数据库运行在不同的IP地址，每个从库和主库不在一个IP地址上。
+
+#### slots
+
+一个 Redis 集群包含 16384 个插槽（hash slot）， 数据库中的每个键都属于这 16384 个插槽的其中一个。集群中的每个节点负责处理一部分插槽。
+
+ 注意：不在一个slot下的键值，不能使用mget，mset等多键操作
+
+我看可以通过{}伴随键定义组，使key中{}内容相同的键值放到一个slot中
+
+```redis
+192.168.10.140:6379> mset username{group1} eric age{group1} 20
+192.168.10.140:6380> get age{group1}
+192.168.10.140:6381> get username{group1}
+```
+
+#### 故障恢复
+
+如果一个主节点掉线，从节点会顶替主节点位置成为新的主节点，掉线节点重启后，不会成为主节点，会成为slave
+
+如果一段slot的主从都挂掉
+
+- cluster-requirefull-coverage为yes，那么整个集群都挂掉
+- cluster-requirefull-coverage为no ，那么这段插槽数据不能使用，集群不会挂掉
+
+
+
+
+
+## springboot整合redis
+
+### 引入依赖
+
+```xml
+<!-- redis -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starterdataredis</artifactId>
+</dependency>
+<!-- spring2.X集成redis所需common-pool2-->
+<dependency>
+    <groupId>org.apache.commons</groupId>
+    <artifactId>commons-pool2</artifactId>
+    <version>2.6.0</version>
+</dependency>
+```
+
+
+
+#### 编写配置文件
+
+```properties
+#Redis服务器地址
+spring.redis.host=192.168.10.130
+#Redis服务器连接端口
+spring.redis.port=6379
+#Redis数据库索引（默认为0）
+spring.redis.database= 0
+#连接超时时间（毫秒）
+spring.redis.timeout=1800000
+#连接池最大连接数（使用负值表示没有限制）
+spring.redis.lettuce.pool.max-active=20
+#最大阻塞等待时间(负数表示没限制)
+spring.redis.lettuce.pool.max-wait=-1
+#连接池中的最大空闲连接
+spring.redis.lettuce.pool.max-idle=5
+#连接池中的最小空闲连接
+spring.redis.lettuce.pool.min-idle=0
+```
+
+
+
+#### 编写配置类
+
+```java
+package com.xq.config;
+
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CachingConfigurerSupport;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import
+org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+import java.time.Duration;
+@EnableCaching
+@Configuration
+public class RedisConfig extends CachingConfigurerSupport {
+    @Bean
+    public RedisTemplate<String, Object>
+        redisTemplate(RedisConnectionFactory factory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        RedisSerializer<String> redisSerializer = new StringRedisSerializer();
+        Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);
+        ObjectMapper om = new ObjectMapper();
+        om.setVisibility(PropertyAccessor.ALL,JsonAutoDetect.Visibility.ANY);
+        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+        jackson2JsonRedisSerializer.setObjectMapper(om);
+        template.setConnectionFactory(factory);
+        //key序列化方式
+        template.setKeySerializer(redisSerializer);
+        //value序列化
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        //value hashmap序列化
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+        return template;
+    }
+    @Bean
+    public CacheManager cacheManager(RedisConnectionFactory factory) {
+        RedisSerializer<String> redisSerializer = new StringRedisSerializer();
+        Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);
+        //解决查询缓存转换异常的问题
+        ObjectMapper om = new ObjectMapper();
+        om.setVisibility(PropertyAccessor.ALL,
+        JsonAutoDetect.Visibility.ANY);
+        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+        jackson2JsonRedisSerializer.setObjectMapper(om);
+        // 配置序列化（解决乱码的问题）,过期时间600秒
+        RedisCacheConfiguration config =
+        RedisCacheConfiguration.defaultCacheConfig()
+            .entryTtl(Duration.ofSeconds(600))
+            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(redisSerializer))
+           .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jackson2JsonRedisSerializer))
+        .disableCachingNullValues();
+        RedisCacheManager cacheManager = RedisCacheManager.builder(factory)
+            .cacheDefaults(config).build();
+        return cacheManager;
+    }
+}
+```
+
+
+
+#### controller
+
+```java
+@RestController
+@RequestMapping("/redisTest")
+public class RedisController {
+    @Autowired
+    private RedisTemplate redisTemplate;
+    @GetMapping
+    public String testRedis() {
+    //设置值到redis
+    redisTemplate.opsForValue().set("name","eric");
+    //从redis获取值
+    String name =(String)redisTemplate
+        .opsForValue().get("name");
+    return name;
+    }
+}
+```
+
