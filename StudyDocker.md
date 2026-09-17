@@ -128,11 +128,103 @@ image 文件生成的容器实例，本身也是一个文件，称为镜像文�
 
 ## Docker命令
 
-重启docker：`systemctl restart docker`
+### 帮助启动类命令
 
-停止docker服务：`systemctl stop docker`
+- 重启docker：`systemctl restart docker`
+- 停止docker服务：`systemctl stop docker`
+- 开启docker服务：`systemctl start docker`
+- 查看docker运行状态：`systemctl status docker`
+- 获取docker帮助：`docker --help`
 
-开启docker服务：`systemctl start docker`
+
+
+### 镜像命令
+
+- 列出本地主机的镜像：`docker images`
+    - repository：镜像仓库源
+    - tag：镜像版本号，latest表示最新版本
+    - image id：镜像唯一标识
+    - create：镜像创建时间
+    - size：镜像大小
+- 搜索镜像：`docker search team`
+    - name：镜像名称
+    - description：镜像说明
+    - stars：点赞数量
+    - official：是否是官方的
+    - automated：是否是自动构建的
+- 拉去指定镜像到本地（下载镜像）：`docker pull name[:tag]`
+- 查看占用空间：`docker system df`
+- （强制）删除镜像：`docker (-f) rmi name`
+- 删除全部镜像：`docker rmi -f $(docker images -qa)` 
 
 
 
+### 容器命令
+
+- 启动容器：`docker run [OPTIONS] IMAGE [COMMAND] [ARG...]`
+
+    OPTIONS参数说明
+
+    - --name="容器新名称"	为容器指定一个名称
+    - -d  后台运行容器并返回容器id
+    - -i  以交互模式运行容器，通常与-t同时使用
+    - -t  为容器重新分配一个伪终端，通常与-i同时使用
+    - -P  随机端口映射
+    - -p  指定端口映射
+
+    启动实列：`docker run -it ubuntu /bin/bash`
+
+    ​	参数说明`/bin/bash`：用来启动交互式Shell，来解析执行linux指令，退出直接输入exit
+
+- 查看正在运行的容器：`docker ps [OPTIONS]`
+
+    OPTIONS参数说明
+
+    - -a：列出当前所有正在运行的容器+历史上运行过的
+    - -l：显示最近创建的容器
+    - -n：显示最近n个创建的容器
+    - -q：只显示正在运行的容器编号
+    - -s：显示总共文件数量
+
+- 退出容器：
+
+    - exit：退出导致容器终止执行
+    - ctrl+p+q：容器不停止
+
+- 启动已停止的容器：`docker start name/id`
+
+- 重启容器：`docker restart name/id`
+
+- 停止容器：`docker stop name/id`
+
+- 强制停止容器：`docker kill name/id`
+
+- 删除已停止容器：`docker rm name/id`
+
+-d可以将指定容器用后台模式运行
+
+- 后台启动容器：`docker run -d name/id`
+
+- 查看容器日志：`docker logs id`
+
+- 动态查看进程信息：`docker top id`
+
+- 查看容器内部具体命令信息：`docker inspect id`
+
+- 进入容器内部：`docker exec -it id /bin/bash`
+
+    这里使用exit退出终端不会关闭容器
+
+- 进入仅前台启动的容器内部：`docker attach id /bin/bash`
+
+    只能进入从前台启动的容器（非-d开启的容器）
+
+
+
+## 备份容器
+
+启动容器后，退出但不关闭容器
+
+- 将容器内文件备份到主机：`docker cp id:/tmp/a.txt /tmp/a.txt`
+- 将容器导出成镜像到主机：`docker export id > name.tar.gz`
+- 导入镜像到容器：`cat name.tar.gz | docker import -user/name:tag`
