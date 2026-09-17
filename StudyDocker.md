@@ -221,6 +221,8 @@ image 文件生成的容器实例，本身也是一个文件，称为镜像文�
 
 
 
+
+
 ## 备份容器
 
 启动容器后，退出但不关闭容器
@@ -228,3 +230,25 @@ image 文件生成的容器实例，本身也是一个文件，称为镜像文�
 - 将容器内文件备份到主机：`docker cp id:/tmp/a.txt /tmp/a.txt`
 - 将容器导出成镜像到主机：`docker export id > name.tar.gz`
 - 导入镜像到容器：`cat name.tar.gz | docker import -user/name:tag`
+
+
+
+
+
+## Docker镜像底层原理
+
+###  Docker镜像是分层的文件系统
+
+目的是为了提高文件的复用性
+
+这种分层的镜像就好像分层的蛋糕。每个分层的镜像都有单独的功能，然后汇聚成一起对外暴露成一个整体的镜像。这种分层的镜像我们又称为联合文件系统(UnionFS)。
+
+联合文件系统（UnionFS）是一种分层、轻量级并且高性能的文件系统，**它支持对文件系统的修改作为一次提交来一层层的叠加**，同时可以将不同目录挂载到同一个虚拟文件系统下(unite several directories into a single virtual filesystem)。Union 文件系统是 Docker 镜像的基础。镜像可以通过分层来进行继承，基于基础镜像（类似于JAVA中的Object类），可以制作各种具体的应用镜像。
+
+
+
+### Docker镜像的加载原理
+
+所有对容器的改动 **-** 无论添加、删除、还是修改文件都只会发生在容器层中。只有容器层是可写的，容器层下面的所有镜像层都是只读的。
+
+![image-20260918000740867](C:\Users\LENOVO\AppData\Roaming\Typora\typora-user-images\image-20260918000740867.png)
