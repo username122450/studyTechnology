@@ -1,0 +1,99 @@
+﻿/* ====== 全局变量 ====== */
+:root {
+  --sidebar-width: 220px;
+  --sidebar-bg: #304156;
+  --navbar-height: 50px;
+  --tags-height: 34px;
+  --color-primary: #409EFF;
+  --color-success: #67C23A;
+  --color-warning: #E6A23C;
+  --color-danger: #F56C6C;
+}
+
+/* ====== 全局重置 ====== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+  background: #f0f2f5;
+}
+
+a {
+  text-decoration: none;
+  color: var(--color-primary);
+}
+
+/* ====== 滚动条样式 ====== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ====== 表格操作按钮间距 ====== */
+.table-actions .el-button + .el-button {
+  margin-left: 6px;
+}
+
+/* ====== 搜索表单 ====== */
+.search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-form .el-input,
+.search-form .el-select {
+  width: 200px;
+}
+
+/* ====== 工具栏 ====== */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.toolbar-left {
+  display: flex;
+  gap: 8px;
+}
+
+/* ====== 卡片容器 ====== */
+.page-card {
+  background: #fff;
+  border-radius: 4px;
+  padding: 20px;
+  min-height: calc(100vh - 140px);
+}
+
+.page-header {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+/* ====== 分页容器 ====== */
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
